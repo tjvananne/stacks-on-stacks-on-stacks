@@ -3,4 +3,4 @@
 *ipynb_checkpoints*
 
 # ignore stuff in cache for now
-cache/*
+cache/*.rds
