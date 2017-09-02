@@ -20,3 +20,12 @@ Therefore, I am rebuilding much of the same logic as what Keiku used, but on a *
 
 
 Ideally, I would be able to ssh into a remote virtual box, scp the experiment dir up to the remove server, edit some config variables, and just hit "go" and leave it alone. I want everything to be modular, almost like how you would train a keras neural network, but for a stacking architecture.
+
+
+## Getting started
+
+
+If you want to contribute to the repo or just get started understanding it better, then navigate into the "script" directory. The readme in there will give much better details on how the actual flow of the program works. The goal is to keep all of the code in this repo squeaky clean and very well documented to really lower the barriers on picking up the logic and applying it towards a different dataset.
+
+
+
