@@ -1,0 +1,6 @@
+
+# ignore these ipynb checkpoint things
+*ipynb_checkpoints*
+
+# ignore stuff in cache for now
+cache/*

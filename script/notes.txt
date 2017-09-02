@@ -1,0 +1,6 @@
+#' Maybe eventually we have a non-sparse version of this where we can start
+#' incorporating some TPOT-style ensembling... Each layer could have several
+#' different iterations of TPOT-trained models
+
+# resources:
+# https://stats.stackexchange.com/questions/270482/model-stacking-gives-poor-performance/270674
