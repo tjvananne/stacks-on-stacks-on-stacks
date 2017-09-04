@@ -4,45 +4,35 @@
 
 
 
-
 # FUNC DEF ---------------------------------------------------------------
-
-    #' Note: this function assumes you have a dataframe in your global environment named "feats_all" and
-    #' that dataframe has the following columns:
+    #' Note: the dataframe you pass in is in long form and has the following columns:
     #'   - id: unique identifier for an observation in your data
     #'   - feature_name: the name of a specific feature
     #'   - value: the value that corresponds to the intersection of the id and feature_name in the data
     #'   
-    #'   
     #' You should also have an object called "y" in your environment with the following columns:
     #'   - id: unique identifier for an observation in your data (same as above)
     #'   - <target variable name>: this will obviously vary
-    #'   
-    #'   
-    #'   We're all consenting adults here. Understand the constraints of this function and don't 
-    #'   point the loaded gun at your own foot.
-    #'   
-    #'   Let's try it without passing it explicitly first, then try it with and compare the RAM usage
-
 
 
 layer1_multi <- function(
-    # p_feats_all,  # <-- risky, but let's just use the global env version...
-    p_stack_y,      # <-- the y's relative to THIS stack, not for the overall project
-    p_tar_var,      # <- "species"
-    p_train_ids,    # <- df_all$id[df_all$dataset == 'train']
-    p_test_ids,     # <- setdiff(df_all$id, x2_train_ids_)
+    p_feats_all,              # <-- no longer using global version, pass the whole df in
+    p_stack_y,                # <-- the y's relative to THIS stack, not for the overall project
+    p_tar_var,                
+    p_train_ids,              
+    p_test_ids,               
     p_xgb_params,
     p_cv_folds=4,
     p_cv_rounds=3000,
     p_cv_earlystop=15,
-    p_cheaters,     # <- c("")
-    p_read_from_cache=FALSE, # <- FALSE
+    p_cheaters,               # <-- c("") -- vector
+    p_read_from_cache=FALSE,  
     p_stack_identifier
 ) {
     
     
     # # for testing, we want to just have the parameter values available to us interactively
+    p_feats_all <- feats_all
     # p_stack_y <- this_stack_y
     # p_tar_var <- "species"
     # p_train_ids <- df_all$id[df_all$dataset == 'train']
@@ -52,12 +42,14 @@ layer1_multi <- function(
     # p_cv_rounds <- 3000
     # p_cv_earlystop <- 15
     # p_cheaters <- these_cheaters
-    # p_read_from_cache = FALSE
+    # p_read_from_cache = TRUE
     # p_stack_identifier = "02"
     
     
     print("Initializing classification stage 1 stacker...")
     
+    # make sure "id", "feature_name" and "value" are all inside of the long df passed in
+    assertthat::assert_that(!any(!c("id", "feature_name", "value") %in% names(p_feats_all)))
     
     # remove NA values and cheater values
     x_all <- subset(feats_all, (!is.na(value) & (!feature_name %in% p_cheaters)))    
@@ -104,8 +96,8 @@ layer1_multi <- function(
     y_train <- x_train_id$this_target
     y_test <- x_test_id$this_target
     
+    # levels of the target variable
     y_train_faclev <- levels(as.factor(y_train))
-    
     
     # update this just in case it needs it, should be based on train alone
     p_xgb_params$num_class <- length(unique(y_train))
@@ -154,16 +146,25 @@ layer1_multi <- function(
             # for debugging:
             # x_train_id[fold_indx, ]
         
+        
+        # cross validation
+        cv_filepath <- paste0("../cache/bst_cv_xgbclassi_", p_stack_identifier, ".rds")
         if(i == 1) {
             
-            # cv to find optimal number of rounds
-            bst_cv_ <- xgb.cv(params=params, data=dx_train_, nfold=p_cv_folds, 
-                              nrounds=p_cv_rounds, early_stopping_rounds = p_cv_earlystop)
+            # read from cache if flag is TRUE and if the file is actually there
+            if(p_read_from_cache & file.exists(cv_filepath)) {
+                bst_cv_ <- readRDS(cv_filepath)
+            } else {
+                
+                # cv to find optimal number of rounds
+                bst_cv_ <- xgb.cv(params=params, data=dx_train_, nfold=p_cv_folds, 
+                                  nrounds=p_cv_rounds, early_stopping_rounds = p_cv_earlystop)
+                
+                # cache it
+                saveRDS(bst_cv_, paste0("../cache/bst_cv_xgbclassi_", p_stack_identifier, ".rds"))
+                
+            }
             
-            
-            # cache it
-            saveRDS(bst_cv_, paste0("../cache/bst_cv_xgbclassi_", p_stack_identifier, ".rds"))
-            # bst_cv_ <- readRDS(paste0("../cache/bst_cv_xgbclassi_", p_stack_identifier, ".rds"))
         }
         
         
@@ -198,29 +199,29 @@ layer1_multi <- function(
         ypred_test_df <- cbind(ypred_test_df, id=x_test_id[, "id"])
         x_stack_test <- bind_rows(x_stack_test, ypred_test_df)
     
+        
     }  # end for loop
     
     
     # gather fold predictions into long format
     x_stack_train_folds_long <- tidyr::gather(x_stack_train_folds, key=feature_name, value=value, -id)
     
-    
     # several test predictions for each ID, so average them within each ID 
     x_stack_test_mean <- x_stack_test %>%
         dplyr::group_by(id) %>% dplyr::summarise_all(funs(mean))
     
-    
     # gather test_means into long format
     x_stack_test_long <- tidyr::gather(x_stack_test_mean, key=feature_name, value=value, -id)
     
+    # create a named list of the values to return from this function
     return_list <- list(x_stack_train_folds_long = x_stack_train_folds_long,
                         x_stack_test_long = x_stack_test_long)
     
     return(return_list)
-        
+    
+    
 }  # end function
     
-
 
 
 
@@ -244,17 +245,18 @@ layer1_multi <- function(
 
     # actual function call
     returned_thing <- layer1_multi(
-                 p_stack_y = this_stack_y,
-                 p_tar_var = "species",
-                 p_train_ids = df_all$id[df_all$dataset == 'train'],
-                 p_test_ids = df_all$id[df_all$dataset == 'test'],
-                 p_xgb_params = params,
-                 p_cv_folds = 4,
-                 p_cv_rounds = 3000,
-                 p_cv_earlystop = 15,
-                 p_cheaters = these_cheaters,
-                 p_read_from_cache = FALSE,
-                 p_stack_identifier = "01")
+         p_feats_all = feats_all,
+         p_stack_y = this_stack_y,
+         p_tar_var = "species",
+         p_train_ids = df_all$id[df_all$dataset == 'train'],
+         p_test_ids = df_all$id[df_all$dataset == 'test'],
+         p_xgb_params = params,
+         p_cv_folds = 4,
+         p_cv_rounds = 3000,
+         p_cv_earlystop = 15,
+         p_cheaters = these_cheaters,
+         p_read_from_cache = TRUE,
+         p_stack_identifier = "01")
 
 
 
@@ -290,5 +292,5 @@ layer1_multi <- function(
         p_stack_identifier = "01")
     
     
-    returned_thing[[1]]
-    returned_thing[[2]]
+
+    
