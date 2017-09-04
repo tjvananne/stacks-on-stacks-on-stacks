@@ -31,6 +31,9 @@
 * (I want all of the 02 combinations above to also be built into 03 combinations)
 
 
+** I'm thinking that regression scripts should not be responsible for scaling features. That should take place in the preprocessing step and exposed as a separate dataset or something.**
+
+
 ## REMEMBER: 
 
 This is setting up the STRUCTURE of a future project. Ideally, you would have many of each of these files. Each .R file would be it's own stage1 or stage2 stacker and the title would indicate what it is using as a target (and possible as a training set if the same target is being put up against multiple forms of training data).

@@ -35,7 +35,8 @@ if(install_packages == 1){
                      "DescTools",
                      "Matrix",
                      "glmnet",
-                     "h5"))
+                     "h5",
+                     "assertthat"))
 }
 
 # load libraries
@@ -53,6 +54,7 @@ library(DescTools)
 library(Matrix)
 library(glmnet)
 library(h5)
+library(assertthat)
 
 # **************************************
 # functions

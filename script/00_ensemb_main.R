@@ -8,7 +8,7 @@
 
 
 # set working directory
-setwd("C:/Users/tvananne/Documents/testbed/ensembling_stacking_combining_models/airbnb_kaggle_example_smallest/script")
+setwd("C:/Users/tvananne/Documents/personal/github/stacks_on_stacks/script")
 getwd()
 
 
