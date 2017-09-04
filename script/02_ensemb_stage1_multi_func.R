@@ -33,11 +33,11 @@ layer1_multi <- function(
     p_train_ids,    # <- df_all$id[df_all$dataset == 'train']
     p_test_ids,     # <- setdiff(df_all$id, x2_train_ids_)
     p_xgb_params,
-    p_cv_folds,
-    p_cv_rounds,
-    p_cv_earlystop,
+    p_cv_folds=4,
+    p_cv_rounds=3000,
+    p_cv_earlystop=15,
     p_cheaters,     # <- c("")
-    p_read_from_cache = FALSE, # <- FALSE
+    p_read_from_cache=FALSE, # <- FALSE
     p_stack_identifier
 ) {
     
@@ -224,22 +224,13 @@ layer1_multi <- function(
 
 
 
-# FUNC PARAM SETUP ------------------------------------------------------
+# TEST FUNC (species) ---------------------------------------------------------------
 
     # pass this in as a parameter itself (the list)
-    params <- list("objective" = "multi:softprob",
-                   "eval_metric" = "mlogloss",
-                   "num_class" = 3,
-                   "eta" = 0.01,              
-                   "max_depth" = 6,
-                   "subsample" = 0.7,
-                   "colsample_bytree" = 0.3,
-                   # "lambda" = 1.0,
-                   "alpha" = 1.0,             
-                   # "min_child_weight" = 6,  
-                   # "gamma" = 10,            
-                   "nthread" = 6)     
-    
+    params <- list("objective" = "multi:softprob", "eval_metric" = "mlogloss", "num_class" = 3,
+                   "eta" = 0.01, "max_depth" = 6, "subsample" = 0.7, "colsample_bytree" = 0.3,
+                   # "lambda" = 1.0, # "min_child_weight" = 6, # "gamma" = 10,
+                   "alpha" = 1.0, "nthread" = 6)     
     
     
     # cheaters should be based on feature_name within feats_all, NOT within df_all
@@ -250,10 +241,6 @@ layer1_multi <- function(
     this_stack_y <- df_all[, c("id", "species")]
     this_stack_y$species <- paste0("species_", this_stack_y$species)
     
-
-
-
-# TEST FUNC ---------------------------------------------------------------
 
     # actual function call
     returned_thing <- layer1_multi(
@@ -271,4 +258,37 @@ layer1_multi <- function(
 
 
 
-
+# TEST FUNC (pwid_bin) - binary category of petal width -----------------
+    
+    
+    # pass this in as a parameter itself (the list)
+    params <- list("objective" = "multi:softprob", "eval_metric" = "mlogloss", "num_class" = 3,
+                   "eta" = 0.01, "max_depth" = 6, "subsample" = 0.7, "colsample_bytree" = 0.3,
+                   # "lambda" = 1.0, # "min_child_weight" = 6, # "gamma" = 10,
+                   "alpha" = 1.0, "nthread" = 6)     
+    
+    
+    # cheaters should be based on feature_name within feats_all, NOT within df_all
+    these_cheaters <- feats_all$feature_name[grepl("^pwid_", feats_all$feature_name)] %>% unique()
+    these_cheaters2 <- feats_all$feature_name[grepl("^petal_width$", feats_all$feature_name)] %>% unique()
+    
+    these_cheaters <- unique(c(these_cheaters, these_cheaters2))  
+    
+    # set up y values for this stack
+    this_stack_y <- df_all[, c("id", "pwid_bin")]
+    this_stack_y$pwid_bin <- paste0("pwid_bin_", this_stack_y$pwid_bin)
+    
+    
+    # actual function call
+    returned_thing <- layer1_multi(
+        p_stack_y = this_stack_y,
+        p_tar_var = "pwid_bin",
+        p_train_ids = df_all$id[df_all$dataset == 'train'],
+        p_test_ids = df_all$id[df_all$dataset == 'test'],
+        p_xgb_params = params,
+        p_cheaters = these_cheaters,
+        p_stack_identifier = "01")
+    
+    
+    returned_thing[[1]]
+    returned_thing[[2]]
