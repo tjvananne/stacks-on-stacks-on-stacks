@@ -112,7 +112,7 @@
         
         # isolate this feat
         df_feats_ <- myiris[, c("id", feat)]
-        assign(x = paste0("pos_values_", feat), value = as.character(unique(df_feats_[, 2])))
+        # assign(x = paste0("pos_values_", feat), value = as.character(unique(df_feats_[, 2])))
         df_feats_[, 2] <- paste0(feat, "_", as.character(df_feats_[, 2]))
         df_feats_$value <- 1
         names(df_feats_) <- c("id", "feature_name", "value")
