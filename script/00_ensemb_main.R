@@ -7,8 +7,13 @@
 
 
 
-# set working directory
-setwd("C:/Users/tvananne/Documents/personal/github/stacks_on_stacks/script")
+# set working directory (based on which machine I'm currently using)
+if(Sys.info()[["sysname"]] == "Windows" & Sys.info()[["user"]] == "Taylor") {
+    setwd("C:/Users/Taylor/Documents/Nerd/github_repos/stacks_on_stacks/script")
+} else {
+    setwd("C:/Users/tvananne/Documents/personal/github/stacks_on_stacks/script")
+}
+
 getwd()
 
 
