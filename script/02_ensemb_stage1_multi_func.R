@@ -3,32 +3,6 @@
 # 02_ensemb_stage1_multi_function
 
 
-# FUNC PARAM SETUP ------------------------------------------------------
-
-# pass this in as a parameter itself (the list)
-params <- list("objective" = "multi:softprob",
-               "eval_metric" = "mlogloss",
-               "num_class" = 3,
-               "eta" = 0.01,              
-               "max_depth" = 6,
-               "subsample" = 0.7,
-               "colsample_bytree" = 0.3,
-               # "lambda" = 1.0,
-               "alpha" = 1.0,             
-               # "min_child_weight" = 6,  
-               # "gamma" = 10,            
-               "nthread" = 6)     
-
-
-
-# cheaters should be based on feature_name within feats_all, NOT within df_all
-these_cheaters <- feats_all$feature_name[grepl("^species_", feats_all$feature_name)] %>% unique()
-
-
-# set up y values for THIS stack, not for overall project
-this_stack_y <- df_all[, c("id", "species")]
-this_stack_y <- paste0("species_", this_stack_y$species)
-
 
 
 # FUNC DEF ---------------------------------------------------------------
@@ -63,20 +37,23 @@ layer1_multi <- function(
     p_cv_rounds,
     p_cv_earlystop,
     p_cheaters,     # <- c("")
-    p_read_from_cache = FALSE # <- FALSE     
+    p_read_from_cache = FALSE, # <- FALSE
+    p_stack_identifier
 ) {
     
     
-    # for testing, we want to just have the parameter values available to us interactively
-    p_tar_var <- "species"
-    p_train_ids <- df_all$id[df_all$dataset == 'train']
-    p_test_ids  <- df_all$id[df_all$dataset == 'test']
-    p_xgb_params <- params
-    p_cv_folds <- 4
-    p_cv_rounds <- 3000
-    p_cv_earlystop <- 15
-    p_cheaters <- these_cheaters
-    p_read_from_cache = FALSE
+    # # for testing, we want to just have the parameter values available to us interactively
+    # p_stack_y <- this_stack_y
+    # p_tar_var <- "species"
+    # p_train_ids <- df_all$id[df_all$dataset == 'train']
+    # p_test_ids  <- df_all$id[df_all$dataset == 'test']
+    # p_xgb_params <- params
+    # p_cv_folds <- 4
+    # p_cv_rounds <- 3000
+    # p_cv_earlystop <- 15
+    # p_cheaters <- these_cheaters
+    # p_read_from_cache = FALSE
+    # p_stack_identifier = "02"
     
     
     print("Initializing classification stage 1 stacker...")
@@ -114,11 +91,8 @@ layer1_multi <- function(
     x_test_id <- x_test %>% select(id, id_num) %>% unique() %>% arrange(id_num)
     
     # map the answers to each id set
-    # y_train <- 
-    # y_test <- x_test_id$this_target
-    
-    x_train_id <- merge(x=x_train_id, y=y, by="id", all.x=T, all.y=F)
-    x_test_id <- merge(x=x_test_id, y=y, by="id", all.x=T, all.y=F)    
+    x_train_id <- merge(x=x_train_id, y=p_stack_y, by="id", all.x=T, all.y=F)
+    x_test_id <- merge(x=x_test_id, y=p_stack_y, by="id", all.x=T, all.y=F)    
     names(x_train_id) <- c("id", "id_num", "this_target")
     names(x_test_id) <- c("id", "id_num", "this_target")
     
@@ -127,7 +101,14 @@ layer1_multi <- function(
     x_train_id <- x_train_id %>% arrange(id_num)
     x_test <- x_test %>% arrange(id_num)
     x_test_id <- x_test_id %>% arrange(id_num)
+    y_train <- x_train_id$this_target
+    y_test <- x_test_id$this_target
     
+    y_train_faclev <- levels(as.factor(y_train))
+    
+    
+    # update this just in case it needs it, should be based on train alone
+    p_xgb_params$num_class <- length(unique(y_train))
     
     # generate sparse matrices
     x_train_sp <- sparseMatrix(i = x_train$id_num, j = x_train$feature_id, x = x_train$value)
@@ -136,7 +117,7 @@ layer1_multi <- function(
     
         # assertions to keep the function from silent errors
         assert_that(nrow(x_train_sp) == nrow(x_train_id) & 
-                    nrow(x_train_sp) == length(unique(x_train$id)) & 
+                    nrow(x_train_sp) == length(unique(x_train$id)) &
                     length(y_train) == nrow(x_train_sp))
         
         assert_that(nrow(x_test_sp) == nrow(x_test_id) & 
@@ -150,8 +131,8 @@ layer1_multi <- function(
     x_cv <- caret::createFolds(1:nrow(x_train_sp), k = p_cv_folds)
     
     # collectors
-    x2_stack_train <- data.frame()
-    x2_stack_test <- data.frame()  # <-- going to pool these and then bag them (average) by ID
+    x_stack_train_folds <- data.frame()
+    x_stack_test <- data.frame()  # <-- going to pool these and then bag them (average) by ID
     
     # dmat for test can 
     dx_test <- xgb.DMatrix(x_test_sp)
@@ -167,7 +148,7 @@ layer1_multi <- function(
         
         # create out-of-fold train data
         x_train_sp_ <- x_train_sp[-fold_indx, ]
-        y_train_ <- y_train[-fold_indx]
+        y_train_ <- as.integer(as.factor(y_train[-fold_indx])) - 1
         dx_train_ <- xgb.DMatrix(x_train_sp_, label = y_train_)
         
             # for debugging:
@@ -179,30 +160,115 @@ layer1_multi <- function(
             bst_cv_ <- xgb.cv(params=params, data=dx_train_, nfold=p_cv_folds, 
                               nrounds=p_cv_rounds, early_stopping_rounds = p_cv_earlystop)
             
+            
+            # cache it
+            saveRDS(bst_cv_, paste0("../cache/bst_cv_xgbclassi_", p_stack_identifier, ".rds"))
+            # bst_cv_ <- readRDS(paste0("../cache/bst_cv_xgbclassi_", p_stack_identifier, ".rds"))
         }
         
-              
-    }    
         
+        # this part heavily depends on xgboost not changing their eval log output in xgb.cv
+        eval_log_ <- data.frame(bst_cv_$evaluation_log)
+        best_nrounds <-  which.min(eval_log_[, grepl("^test_", names(eval_log_)) & grepl("_mean$", names(eval_log_))])
+        
+        # build model    
+        xgbmod <- xgboost(data=dx_train_, param=params, nround=best_nrounds, save_period=NULL)
+        
+        # visualize feature importance
+        if(i == 1) {
+            xgb_imp <- xgb.importance(feature_names = unique(x_train$feature_name), model=xgbmod)
+            xgboost::xgb.ggplot.importance(xgb_imp)
+        }
+        
+        # predict on this fold of train 
+        ypred_fold <- predict(xgbmod, dx_train_fold_)
+        ypred_fold_mat <- matrix(ypred_fold, nrow=nrow(x_train_fold_sp_), ncol=p_xgb_params$num_class, byrow = T)
+        ypred_fold_df <- as.data.frame(ypred_fold_mat)
+        names(ypred_fold_df) <- paste0(y_train_faclev, "_pred_model_", p_stack_identifier)
+            # debug01_ <- cbind(ypred_fold_df, x_train_fold_id_)
+        ypred_fold_df <- cbind(ypred_fold_df, id=x_train_fold_id_[, "id"])
+        x_stack_train_folds <- bind_rows(x_stack_train_folds, ypred_fold_df)
+        
+        # predict on test
+        ypred_test <- predict(xgbmod, dx_test)    
+        ypred_test_mat <- matrix(ypred_test, nrow=nrow(x_test_sp), ncol=p_xgb_params$num_class, byrow=T)   
+        ypred_test_df <- as.data.frame(ypred_test_mat)
+        names(ypred_test_df) <- paste0(y_train_faclev, "_pred_model_", p_stack_identifier)
+            # debug02_ <- cbind(ypred_test_df, x_test_id)
+        ypred_test_df <- cbind(ypred_test_df, id=x_test_id[, "id"])
+        x_stack_test <- bind_rows(x_stack_test, ypred_test_df)
+    
+    }  # end for loop
     
     
-}
+    # gather fold predictions into long format
+    x_stack_train_folds_long <- tidyr::gather(x_stack_train_folds, key=feature_name, value=value, -id)
+    
+    
+    # several test predictions for each ID, so average them within each ID 
+    x_stack_test_mean <- x_stack_test %>%
+        dplyr::group_by(id) %>% dplyr::summarise_all(funs(mean))
+    
+    
+    # gather test_means into long format
+    x_stack_test_long <- tidyr::gather(x_stack_test_mean, key=feature_name, value=value, -id)
+    
+    return_list <- list(x_stack_train_folds_long = x_stack_train_folds_long,
+                        x_stack_test_long = x_stack_test_long)
+    
+    return(return_list)
+        
+}  # end function
+    
+
+
+
+
+# FUNC PARAM SETUP ------------------------------------------------------
+
+    # pass this in as a parameter itself (the list)
+    params <- list("objective" = "multi:softprob",
+                   "eval_metric" = "mlogloss",
+                   "num_class" = 3,
+                   "eta" = 0.01,              
+                   "max_depth" = 6,
+                   "subsample" = 0.7,
+                   "colsample_bytree" = 0.3,
+                   # "lambda" = 1.0,
+                   "alpha" = 1.0,             
+                   # "min_child_weight" = 6,  
+                   # "gamma" = 10,            
+                   "nthread" = 6)     
+    
+    
+    
+    # cheaters should be based on feature_name within feats_all, NOT within df_all
+    these_cheaters <- feats_all$feature_name[grepl("^species_", feats_all$feature_name)] %>% unique()
+    
+    
+    # set up y values for THIS stack, not for overall project
+    this_stack_y <- df_all[, c("id", "species")]
+    this_stack_y$species <- paste0("species_", this_stack_y$species)
     
 
 
 
 # TEST FUNC ---------------------------------------------------------------
 
-    
-    
     # actual function call
     returned_thing <- layer1_multi(
-                 # p_feats_all = feats_all,
+                 p_stack_y = this_stack_y,
                  p_tar_var = "species",
                  p_train_ids = df_all$id[df_all$dataset == 'train'],
                  p_test_ids = df_all$id[df_all$dataset == 'test'],
                  p_xgb_params = params,
+                 p_cv_folds = 4,
+                 p_cv_rounds = 3000,
+                 p_cv_earlystop = 15,
                  p_cheaters = these_cheaters,
-                 p_read_from_cache = FALSE)
+                 p_read_from_cache = FALSE,
+                 p_stack_identifier = "01")
+
+
 
 
