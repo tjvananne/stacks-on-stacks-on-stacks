@@ -6,6 +6,25 @@
 # https://github.com/Keiku/kaggle-airbnb-recruiting-new-user-bookings
 
 
+# Finish building the pipeline for xgboost, but then....
+# Investigate using "catboost" as a different backend. Apparently it beats 
+# Look into making a version of these functions that use a different algorithm backend
+# https://www.kaggle.com/jmbull/boost-starter-0-0648x-lb  
+# https://techcrunch.com/2017/07/18/yandex-open-sources-catboost-a-gradient-boosting-machine-learning-librar/ 
+# https://catboost.yandex/#benchmark 
+# https://github.com/catboost/catboost
+# this would mean I don't have to do any of the preprocess work... 
+
+
+# STEPS - only focus on the very next step which needs to be accomplished:
+#' 1) build the regression version of the stage1_multi_func function
+#' 2) work on functionizing the preprocessing steps for this pipeline
+#' 3) can catboost work on sparse matrix data structures in R? 
+#'    - If so, drop it in in-place and test accuracy
+#'    - If not, drop it in with the non-numeric, non-sparse data and test
+
+
+
 
 # set working directory (based on which machine I'm currently using)
 if(Sys.info()[["sysname"]] == "Windows" & Sys.info()[["user"]] == "Taylor") {
