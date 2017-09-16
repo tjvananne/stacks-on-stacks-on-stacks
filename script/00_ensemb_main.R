@@ -1,19 +1,25 @@
 
 
 # main.R for ensemb_small project
-# much of this project structure is based on this awesome
-# second-place submission in the airbnb kaggle competition:
-# https://github.com/Keiku/kaggle-airbnb-recruiting-new-user-bookings
+
+# goal, combine the logic and thought process of these repos
+    # https://github.com/Keiku/kaggle-airbnb-recruiting-new-user-bookings  # <-- master of xgboost sparse stacking
+    # https://github.com/owenzhang/Kaggle-AmazonChallenge2013              # <-- master of the glmnet formula interactions
+    #  ^ Need to figure out his "__final_utils.R" script, really weird functions in there
+
+# and this kaggle script (imputation, skewness, collinearity, blending)
+    # https://www.kaggle.com/tannercarbonati/detailed-data-analysis-ensemble-modeling
 
 
-# Finish building the pipeline for xgboost, but then....
-# Investigate using "catboost" as a different backend. Apparently it beats 
-# Look into making a version of these functions that use a different algorithm backend
-# https://www.kaggle.com/jmbull/boost-starter-0-0648x-lb  
-# https://techcrunch.com/2017/07/18/yandex-open-sources-catboost-a-gradient-boosting-machine-learning-librar/ 
-# https://catboost.yandex/#benchmark 
-# https://github.com/catboost/catboost
-# this would mean I don't have to do any of the preprocess work... 
+# into my own library of usable functions for any data science project
+
+
+# Investigate catboost when it is more mature (currently limited to certain Vis Studio compiler)
+    # https://www.kaggle.com/jmbull/boost-starter-0-0648x-lb  
+    # https://techcrunch.com/2017/07/18/yandex-open-sources-catboost-a-gradient-boosting-machine-learning-librar/ 
+    # https://catboost.yandex/#benchmark 
+    # https://github.com/catboost/catboost
+    # this would mean I don't have to do any of the preprocess work... 
 
 
 # STEPS - only focus on the very next step which needs to be accomplished:
@@ -43,7 +49,7 @@ source('zz_ensemb_utils.R')  # <-- this should not remove items from environment
 
 
 if(TRUE) {
-    source("01_ensemb_preproc.R")  # <-- standardized rules for preproc
+    source("01_ensemb_sparse_preproc.R")  # <-- standardized rules for preproc
     # complex datasets will have several preproc / first stage feature generation files
 }
 
@@ -57,7 +63,7 @@ if(TRUE) {
 # each of these will clean up global env after completion and restore
 # global env to what it looked like after 01_ensemb_preproc.R ran.
 # each will conduct garbage collection to free up memory.
-source("02_ensemb_stage1_multi.R")
+
 
 
 

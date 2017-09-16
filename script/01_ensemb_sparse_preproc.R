@@ -8,7 +8,6 @@
     train_size <- 0.7  # between 0.1 - 0.9
 
 
-
 # load data ----------------------------
     
     # some of this is obviously iris-specific
@@ -18,19 +17,61 @@
     names(myiris) <- gsub("\\.", "_", tolower(names(myiris)))
     
     
+    # generate a unique id based on number of rows -- data should be wide and tidy at this stage
+    myiris$id <- paste0("ID_", formatC(1:nrow(myiris), width=nchar(as.character(nrow(myiris))), flag="0"))
     
-    # generate rand character string ids:
-    randchar_pool_ <- c(letters, 0:9)
-    myiris$id <- replicate(
-        n=nrow(myiris), 
-        expr = paste0(randchar_pool_[sample(1:length(randchar_pool_), 10)], collapse='')
-    )
     
-
+    # generate a mapping between existing and new id here if necessary
+    
+    
+    
+    
+    
+# Additional feature generation and data cleansing -----------
+    
+    # this section will likely require several 01-level scripts
+    # this example is simple enough to take just a few lines of code
+    
+    
+    
+    # let's create a few more categorical variables so we have more than just 1
+    # split petal_length into categorical (factor) quartile bins
+    plen_ <- myiris$petal_length
+    plen_qt_int_ <- as.integer(cut2(plen_, c(
+        min(plen_, na.rm=T), 
+        quantile(plen_, 0.25, na.rm=T), 
+        quantile(plen_, 0.50, na.rm=T), # aka, median 
+        quantile(plen_, 0.75, na.rm=T))))
+    myiris$plen_qt <- as.factor(plen_qt_int_)
+    
+    
+    
+    # split petal_width into binary categories (< median, > median)
+    pwid_ <- myiris$petal_width
+    summary(pwid_)
+    pwid_bin_int_ <- as.integer(cut2(pwid_, c(
+        min(pwid_, na.rm=T),
+        quantile(pwid_, 0.50, na.rm=T))))
+    myiris$pwid_bin <- as.factor(pwid_bin_int_)
+    
+    
+    # remove items ending with underscore in current global env
+    rm(list = ls()[grepl("_$", ls())])
+    
+    
+    
     
 
 # data preproc -------------------------
 
+    myiris
+    
+    
+    
+    
+    
+# data split + dataset label ------------------------
+    
     
     # will be labels for both train and test
     y <- myiris[, c("id", "sepal_width")]  # immediately after generating "id" field
@@ -49,38 +90,7 @@
     
 
 
-# Additional feature generation and data cleansing -----------
-    
-    # this section will likely require several 01-level scripts
-    # this example is simple enough to take just a few lines of code
-    
-    
-    
-    # let's create a few more categorical variables so we have more than just 1
-    # split petal_length into categorical (factor) quartile bins
-    plen_ <- myiris$petal_length
-    plen_qt_int_ <- as.integer(cut2(plen_, c(
-                                               min(plen_, na.rm=T), 
-                                               quantile(plen_, 0.25, na.rm=T), 
-                                               quantile(plen_, 0.50, na.rm=T), # aka, median 
-                                               quantile(plen_, 0.75, na.rm=T))))
-    myiris$plen_qt <- as.factor(plen_qt_int_)
-    
-    
-    
-    # split petal_width into binary categories (< median, > median)
-    pwid_ <- myiris$petal_width
-    summary(pwid_)
-    pwid_bin_int_ <- as.integer(cut2(pwid_, c(
-                                           min(pwid_, na.rm=T),
-                                           quantile(pwid_, 0.50, na.rm=T))))
-    myiris$pwid_bin <- as.factor(pwid_bin_int_)
 
-    
-    # remove items ending with underscore in current global env
-    rm(list = ls()[grepl("_$", ls())])
-    
-    
     
         
 # stack all features -------------

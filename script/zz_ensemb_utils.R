@@ -134,3 +134,46 @@ ndcg5 <- function(preds, dtrain) {
   ndcg <- mean(apply(x,1,dcg))
   return(list(metric = "ndcg5", value = ndcg))
 }
+
+
+# Mine (TJV) ------
+
+    #' pre-computed numerical interactions. you could really go crazy with these... 
+    
+    mult_2_comb <- function(para_df) {
+        
+        num_cols <- sapply(para_df, class) %in% c("integer", "numeric")
+        df_non_num <- para_df[, !num_cols, drop=F]
+        df_num <- para_df[, num_cols, drop=F]
+        df_num_names <- names(df_num)
+        
+        df_num_comb <- gtools::combinations(n=length(unique(df_num_names)), r=2, v=df_num_names, set=T, repeats.allowed=F)
+        results_names <- character(nrow(df_num_comb))
+        results_df <- data.frame()
+        
+        for(i in 1:nrow(df_num_comb)) {
+            this_df <- data.frame(df_num[, df_num_comb[i, 1]] * df_num[, df_num_comb[i, 2]])
+            results_df <- bind_cols(this_df, results_df)
+            results_names[i] <- paste0(df_num_comb[i, 1], "_", df_num_comb[i, 2], "_comb_multiply")
+            
+        }
+        
+        names(results_df) <- results_names[length(results_names):1]
+        return(results_df)
+    }
+    
+    
+        # # to test
+        # df <- data.frame(
+        #     n1 = c(3, 5, 12, 4, 5),
+        #     n2 = c(1, 1, 1, 1, 1),
+        #     n3 = c(0, 0, 0, NA, 0),
+        #     n4 = c(100, 85, 36, 599, 28),
+        #     n5 = c("cat" , "dog", "pig" ,"sheep", "horse")
+        # )
+        # 
+        # print(df)
+        # ret_df <- mult_2_comb(df)
+
+
+
