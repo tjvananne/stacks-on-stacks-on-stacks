@@ -71,10 +71,11 @@ xgb_grid <- expand.grid(param)
 
 
 
-# FUNCTION ----------------------------------------------------
+# xgboost cross validation parameter sweeper ----------------------------
 
-tjv_xgb_classi_sweep <- function(param_train, param_grid, param_resultpath=NULL, param_nrounds=10000,
-                                 param_folds=5, param_early_stop=100) {
+tjv_xgb_classi_sweep <- function(param_train, param_grid, param_resultpath=NULL, 
+                                 param_append=F, param_nrounds=10000, param_folds=5, 
+                                 param_early_stop=100, param_randseed=1776, param_maximize=F) {
     
     
     # # for rapid dev
@@ -85,10 +86,29 @@ tjv_xgb_classi_sweep <- function(param_train, param_grid, param_resultpath=NULL,
     # param_folds = 5
     # param_early_stop=100
     
+    # param_append logic is untested
+    set.seed(param_randseed)
     
     # if a file path was supplied, create or overwrite the file, otherwise, start a data.frame
     if(!is.null(param_resultpath)) {
-        cat("parameterkey, cv_score, best_nrounds\n", file=param_resultpath, append = FALSE)
+        
+        # if user specified they want to append to existing file:
+        if(param_append) {
+            
+            # if the file to append to actually exists:
+            if(file.exists(param_resultpath)) {
+                print(paste0("appending to the file already created at: ", param_resultpath))
+                existing_results_file <- read.csv(param_resultpath, stringsAsFactors = F)
+                
+            } else {
+                # file doesn't exist, cannot append to it
+                stop(paste0(param_resultpath, " - file does not exist, cannot append to this file"))
+            }
+            
+        } else {
+            # user doesn't want to append, so write to the file and overwrite if necessary
+            cat("parameterkey, cv_score, best_nrounds\n", file=param_resultpath, append = FALSE)
+        }
     } 
     
     
@@ -98,20 +118,37 @@ tjv_xgb_classi_sweep <- function(param_train, param_grid, param_resultpath=NULL,
         # parameter key
         this_parakey <- paste0(names(param_grid[i, ]), "_", as.list(param_grid[i, ]), collapse="|")
         
+        # if user wishes to append to existing results file:
+        if(param_append) {
+            if(this_parakey %in% existing_results_file$parameterkey) {
+                print(paste0(this_parakey, ": already evaluated..."))
+                next
+            }
+        }
+        
+        print(paste0("running this paramkey: ", this_parakey, "..."))
+        
         # execute cv
         this_cv <- xgb.cv(
             data = param_train,
             nrounds = param_nrounds,
             nfold = param_folds,
             early_stopping_rounds = param_early_stop,
-            params = as.list(param_grid[i,])
+            params = as.list(param_grid[i,]),
+            print_every_n = 100,
+            maximize = param_maximize
         )
         
         
         # capture nrounds and score for min error
         ev_log <- data.frame(this_cv$evaluation_log)
         ev_log_metric <- names(ev_log)[grepl("^test_", names(ev_log)) & grepl("_mean", names(ev_log))]
-        this_best_nrounds <- which.min(ev_log[, ev_log_metric])
+        if(param_maximize) {
+            this_best_nrounds <- which.max(ev_log[, ev_log_metric])
+        } else {
+            this_best_nrounds <- which.min(ev_log[, ev_log_metric])
+        }
+        
         this_best_score <- ev_log[this_best_nrounds, ev_log_metric]
         
         
@@ -130,8 +167,6 @@ tjv_xgb_classi_sweep <- function(param_train, param_grid, param_resultpath=NULL,
         
         
     } # end for loop
-    
-    
     # if result path is null then return it as a data.frame
     if(is.null(param_resultpath)) {
         return(results_df)
@@ -139,7 +174,6 @@ tjv_xgb_classi_sweep <- function(param_train, param_grid, param_resultpath=NULL,
     
     
 } # end the function
-
 
 # FuNCTION TESTING ---------------------------------------------
 
